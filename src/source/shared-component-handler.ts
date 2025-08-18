@@ -1,7 +1,6 @@
 import { BaseComponent, Components } from "@flamework/components";
 import { AbstractConstructor } from "@flamework/components/out/utility";
 import { Controller, Modding, OnInit, Service } from "@flamework/core";
-import { SyncPayload } from "@rbxts/charm-sync";
 import { remotes } from "../remotes";
 import { PlayerAction, SharedComponentInfo } from "../types";
 import { GetConstructorIdentifier, GetParentConstructor, IsClient, IsServer, logWarning } from "../utilities";
@@ -200,22 +199,24 @@ export class SharedComponentHandler implements OnInit {
 
 		remotes._shared_component_connection.onRequest(async (player, componentInfo, action) => {
 			const component = this.resolveComponent(componentInfo, action === PlayerAction.Connect);
-			if (!component) return [false, ""] as const;
+			if (!component) return [false, "", undefined] as const;
 
 			if (action === PlayerAction.Connect) {
-				if (component.IsConnectedPlayer(player)) return [false, ""] as const;
+				if (component.IsConnectedPlayer(player)) return [false, "", undefined] as const;
 
 				const success = component.__OnPlayerConnect(player);
-				return success ? [true, component.GetID()] : ([false, ""] as const);
+				return success
+					? [true, component.GetID(), component.__GenerateHydrateData()]
+					: ([false, "", undefined] as const);
 			}
 
 			if (action === PlayerAction.Disconnect) {
-				if (!component.IsConnectedPlayer(player)) return [false, ""] as const;
+				if (!component.IsConnectedPlayer(player)) return [false, "", undefined] as const;
 				component.__OnPlayerDisconnect(player);
-				return [true, ""] as const;
+				return [true, "", undefined] as const;
 			}
 
-			return [false, ""] as const;
+			return [false, "", undefined] as const;
 		});
 	}
 }

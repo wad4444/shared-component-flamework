@@ -7,21 +7,15 @@ import { ValueStorageComponent } from "shared/components/valueStorageComponent";
 	tag: "ValueStorageComponent",
 })
 export class ClientValueStorageComponent extends ValueStorageComponent implements OnStart {
-	protected isAutoConnect = false;
-
 	onStart(): void {
 		this.Subscribe((state) => {
-			print(state);
+			print(state.value);
 		});
 
 		this.remotes.ping.Connect((value) => {
 			this.remotes.pong.Fire(value);
 		});
-
-		print("Start connection");
-		task.delay(5, () => {
-			this.Connect();
-		});
+		print(this.state.value);
 	}
 
 	@Subscribe((state) => state.value)
@@ -30,7 +24,7 @@ export class ClientValueStorageComponent extends ValueStorageComponent implement
 	}
 
 	public OnConnected(): void {
-		print("Connected");
+		print("Connected", this.state.value);
 	}
 
 	public OnDisconnected(): void {

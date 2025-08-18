@@ -27,7 +27,7 @@ export const remotes = createRemotes({
 	_shared_component_connection: remote<Server, [componentInfo: SharedComponentInfo | string, action: PlayerAction]>(
 		Flamework.createGuard(),
 		Flamework.createGuard(),
-	).returns<[boolean, string]>(Flamework.createGuard()),
+	).returns<[boolean, string, SyncPayload<{}> | undefined]>(Flamework.createGuard()),
 
 	_shared_component_disconnected: remote<Client, [componentInfo: string]>(Flamework.createGuard()),
 });

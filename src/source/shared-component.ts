@@ -345,8 +345,8 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 				return;
 			}
 
-			this.onDoneHydrating.Fire();
 			this.isDoneHydrating = true;
+			this.onDoneHydrating.Fire();
 			this.atom(payload.data as S);
 		});
 
@@ -370,7 +370,6 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 
 		this.connectedPlayers.add(player);
 		this.OnConnectedPlayer(player);
-		this.__Hydrate(player);
 
 		return true;
 	}
@@ -389,12 +388,18 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	 * @hidden
 	 **/
 	public __Hydrate = (player: Player) => {
-		const payload: SyncPayload<{}> = {
-			type: "init",
-			data: this.state as never,
-		};
+		this.onSendPayload(player, this.__GenerateHydrateData() as never);
+	};
 
-		this.onSendPayload(player, payload);
+	/**
+	 * @internal
+	 * @hidden
+	 **/
+	public __GenerateHydrateData = () => {
+		return {
+			type: "init" as const,
+			data: this.state,
+		};
 	};
 
 	/**
@@ -508,8 +513,19 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 		if (this.isDestroyed) return false;
 		if (this.isConnected) return true;
 
-		const [success, id] = await remotes._shared_component_connection(this.GenerateInfo(), PlayerAction.Connect);
+		const [success, id, payload] = await remotes._shared_component_connection(
+			this.GenerateInfo(),
+			PlayerAction.Connect,
+		);
 		if (!success) return false;
+
+		if (payload === undefined) {
+			logWarning("Server not send hydrate data.");
+		}
+
+		if (payload !== undefined) {
+			this.__DispatchFromServer(payload);
+		}
 
 		this.isConnected = true;
 		this.uniqueId = id;
