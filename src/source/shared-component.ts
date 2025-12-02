@@ -61,6 +61,7 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	private playerRemovingConnection?: RBXScriptConnection;
 	private scheduledSyncConnection?: RBXScriptConnection;
 	private uniqueId = "";
+	private instanceServerId?: string;
 	private sharedComponentCtor: Constructor<SharedComponent>;
 	private onDoneHydrating = new Signal<[]>();
 	private isDestroyed = false;
@@ -80,7 +81,7 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 			const newState = localAtom(state);
 
 			this.state = state;
-			this.scheduleSync(prevState as S);
+			if (IsServer) this.scheduleSync(prevState as S);
 
 			return newState;
 		}) as Atom<S>;
@@ -473,7 +474,8 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	}
 
 	private getServerId() {
-		return this.instance.GetAttribute("__SERVER_ID") as string | undefined;
+		if (this.instanceServerId) return this.instanceServerId;
+		return (this.instanceServerId = this.instance.GetAttribute("__SERVER_ID") as string | undefined);
 	}
 
 	private getConstructor() {
