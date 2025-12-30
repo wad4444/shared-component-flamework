@@ -4,7 +4,7 @@ import { OnStart } from "@flamework/core";
 import { Constructor } from "@flamework/core/out/utility";
 import { Signal } from "@rbxts/beacon";
 import Charm, { atom, Atom, subscribe } from "@rbxts/charm";
-import { SyncPatch, SyncPayload } from "@rbxts/charm-sync";
+import { isNone, SyncPatch, SyncPayload } from "@rbxts/charm-sync";
 import { Players, ReplicatedStorage, RunService } from "@rbxts/services";
 import { remotes } from "../remotes";
 import { PlayerAction, SharedComponentInfo } from "../types";
@@ -348,7 +348,12 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 
 			this.isDoneHydrating = true;
 			this.onDoneHydrating.Fire();
-			this.atom(payload.data as S);
+
+			if (isNone(payload.data)) {
+				this.atom(undefined as S);
+			} else {
+				this.atom(payload.data as S);
+			}
 		});
 
 		if (!RunService.IsStudio() || !this.isEnableDevTool) return;
@@ -399,7 +404,7 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	public __GenerateHydrateData = () => {
 		return {
 			type: "init" as const,
-			data: this.state,
+			data: this.state ?? patch.None,
 		};
 	};
 
