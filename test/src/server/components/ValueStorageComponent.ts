@@ -8,11 +8,21 @@ import { ValueStorageComponent } from "shared/components/valueStorageComponent";
 })
 export class ServerValueStorageComponent extends ValueStorageComponent implements OnStart {
 	public onStart() {
-		task.spawn(() => {
+		/*task.spawn(() => {
 			while (task.wait(3)) {
 				this.setValue(this.state.value + 1);
+				this.remotes.ping.Broadcast(this.state.value);
 			}
-		});
+		});*/
+		this.setValue(this.state.value + 1);
+
+		/*this.remotes.pong.Connect((player, value) => {
+			print(`Player ${player.Name} sent value ${value}`);
+		});*/
+	}
+
+	public OnDisconnectedPlayer(player: Player): void {
+		print(`Player ${player.Name} disconnected`);
 	}
 
 	@Action()

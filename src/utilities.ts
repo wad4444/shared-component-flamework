@@ -1,25 +1,10 @@
 import { Reflect } from "@flamework/core";
 import { AbstractConstructor, Constructor } from "@flamework/core/out/utility";
-import { RunService } from "@rbxts/services";
-
-type GeneratorIdReturning<T extends boolean> = T extends true ? string : number;
+import { HttpService, RunService } from "@rbxts/services";
 
 interface ConstructorWithIndex extends Constructor {
 	__index: object;
 }
-
-export const CreateGeneratorId = <C extends boolean>(isString = false as C) => {
-	const instance = {
-		freeId: 0,
-		Next: (): GeneratorIdReturning<C> => {
-			const id = instance.freeId;
-			instance.freeId += 1;
-			return (isString ? `${id}` : id) as GeneratorIdReturning<C>;
-		},
-	};
-
-	return instance as { Next: () => GeneratorIdReturning<C> };
-};
 
 export const consolePrefix = `SharedComponets`;
 const errorString = `--// [${consolePrefix}]: Caught an error in your code //--`;
@@ -28,20 +13,32 @@ const warnString = `--// [${consolePrefix}] //--`;
 export const IsServer = RunService.IsServer();
 export const IsClient = RunService.IsClient();
 
-export function logError(Message?: string, DisplayTraceback = true): never {
-	return error(`\n ${errorString} \n ${Message ?? ""} \n \n ${DisplayTraceback && debug.traceback()}`);
+export function logError(message?: string, displayTraceback = true): never {
+	return error(`\n ${errorString} \n ${message ?? ""} \n \n ${displayTraceback && debug.traceback()}`);
 }
 
-export function logWarning(Message: string) {
-	warn(`\n ${warnString} \n ${Message} \n`);
+export function logWarning(message: string, displayTraceback = true) {
+	warn(`\n ${warnString} \n ${message} \n ${displayTraceback && debug.traceback()}`);
 }
 
-export function logAssert<T>(condition: T, message?: string, DisplayTraceback = true): asserts condition {
-	!condition && logError(message, DisplayTraceback);
+export function logAssert<T>(condition: T, message?: string, displayTraceback = true): asserts condition {
+	!condition && logError(message, displayTraceback);
+}
+
+export function GenerateID() {
+	return `${HttpService.GenerateGUID(false)}-${tick()}`;
 }
 
 export function GetConstructorIdentifier(constructor: Constructor) {
-	return (Reflect.getMetadata(constructor, "identifier") as string) ?? "Not found id";
+	const identifier = Reflect.getOwnMetadata(constructor, "identifier") as string;
+	if (identifier === undefined) {
+		logWarning(
+			`Component ${constructor} does not have an identifier. Check for the presence of the @Component decorator.`,
+		);
+		return "MissingIdentifier";
+	}
+
+	return identifier;
 }
 
 export function GetParentConstructor(ctor: AbstractConstructor) {
@@ -52,57 +49,20 @@ export function GetParentConstructor(ctor: AbstractConstructor) {
 	}
 }
 
-export const ForeachDeepTable = (
-	tbl: object,
-	callback: (value: unknown, key: unknown) => void,
-	predicate?: (value: object) => boolean,
-) => {
-	for (const [key, value] of pairs(tbl)) {
-		if (typeIs(value, "table")) {
-			if (predicate && predicate(value)) {
-				callback(key, value);
-				continue;
-			}
-			ForeachDeepTable(value, callback);
-			continue;
-		}
-		callback(key, value);
-	}
-};
-
-export function GetInheritanceTree<T>(constructor: Constructor, parent: Constructor) {
+export function GetSharedComponentCtor<T>(constructor: Constructor, parent: Constructor) {
 	let currentClass = constructor as ConstructorWithIndex;
 	let metatable = getmetatable(currentClass) as ConstructorWithIndex;
-	const tree = [constructor] as Constructor<T>[];
+	let result = constructor as Constructor<T>;
 
 	while (currentClass && rawget(metatable, "__index") !== parent) {
+		if (Reflect.getOwnMetadata(currentClass, "sharedComponentsFlamework:shared")) {
+			return result;
+		}
+
 		currentClass = rawget(metatable, "__index") as ConstructorWithIndex;
 		metatable = getmetatable(currentClass) as ConstructorWithIndex;
-		tree.push(currentClass as unknown as Constructor<T>);
+		result = currentClass as never;
 	}
 
-	return tree;
+	return result;
 }
-
-export function DeepCloneTable<V>(value: ReadonlyArray<V>): Array<V>;
-export function DeepCloneTable<V>(value: ReadonlySet<V>): Set<V>;
-export function DeepCloneTable<K, V>(value: ReadonlyMap<K, V>): Map<K, V>;
-export function DeepCloneTable<T extends object>(value: T): T;
-export function DeepCloneTable<T extends object>(obj: T): T {
-	const result = {};
-
-	for (const [key, value] of pairs(obj)) {
-		result[key as never] = typeIs(value, "table") ? (DeepCloneTable(value as never) as never) : (value as never);
-	}
-
-	return result as T;
-}
-
-export type DeepReadonly<T> =
-	T extends Map<infer K, infer V>
-		? ReadonlyMap<K, V>
-		: T extends Set<infer R>
-			? ReadonlySet<R>
-			: T extends object
-				? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-				: T;
