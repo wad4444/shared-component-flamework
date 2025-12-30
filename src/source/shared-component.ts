@@ -50,7 +50,7 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	/** @client */
 	protected isAutoConnect = true;
 	protected readonly remotes: Record<string, ISharedNetwork> = {};
-	protected atom: Atom<S>;
+	protected readonly atom = atom() as Atom<S>;
 
 	private isConnected = false;
 	private isEnableDevTool = false;
@@ -70,21 +70,11 @@ abstract class SharedComponent<S = any, A extends object = {}, I extends Instanc
 	constructor() {
 		super();
 
-		const localAtom = atom();
-		this.atom = ((state?: S) => {
-			if (state === undefined) {
-				if (localAtom() !== this.state) localAtom(this.state);
-				return this.state;
-			}
-
-			const prevState = this.state;
-			const newState = localAtom(state);
-
-			this.state = state;
-			if (IsServer) this.scheduleSync(prevState as S);
-
-			return newState;
-		}) as Atom<S>;
+		const cleanup = subscribe(this.atom, (state) => {
+			if (IsServer) this.scheduleSync(this.state as S);
+			this.state = state as S;
+		});
+		this.listeners.add(cleanup);
 
 		this.initSharedActions();
 		this.sharedComponentCtor = GetSharedComponentCtor(
